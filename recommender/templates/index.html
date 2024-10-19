@@ -1,0 +1,33 @@
+<!-- recommender/templates/index.html -->
+{% extends 'base.html' %}
+
+{% block content %}
+<h1>Welcome to the Movie Recommender System</h1>
+<form method="get" action="{% url 'results' %}">
+    <!-- Existing movie title input -->
+    <div class="form-group">
+        <label for="movie_title">Enter a movie title:</label>
+        <input type="text" class="form-control" id="movie_title" name="movie_title" placeholder="e.g., Inception">
+    </div>
+    <!-- New filter for genre -->
+    <div class="form-group">
+        <label for="genre">Filter by genre:</label>
+        <select class="form-control" id="genre" name="genre">
+            <option value="">All Genres</option>
+            <!-- Add more genres as needed -->
+            <option value="action">Action</option>
+            <option value="comedy">Comedy</option>
+            <option value="drama">Drama</option>
+        </select>
+    </div>
+    <!-- Sorting options -->
+    <div class="form-group">
+        <label for="sort_by">Sort by:</label>
+        <select class="form-control" id="sort_by" name="sort_by">
+            <option value="relevance">Relevance</option>
+            <option value="title">Title</option>
+        </select>
+    </div>
+    <button type="submit" class="btn btn-primary">Recommend</button>
+</form>
+{% endblock content %}
