@@ -30,11 +30,14 @@ def results(request):
     genres = set(selected_genres) if selected_genres else None
 
     if movie_title:
+        # Set your desired threshold here
+        threshold = 70
         recommendations, matched_title = recommender.recommend(
             movie_user_likes=movie_title,
             num_recommendations=num_recommendations,
             genres=genres,
-            sort_by=sort_by
+            sort_by=sort_by,
+            threshold=threshold  # Pass the threshold to the recommend method
         )
         if matched_title:
             if not recommendations:
