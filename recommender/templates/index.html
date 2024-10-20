@@ -2,32 +2,53 @@
 {% extends 'base.html' %}
 
 {% block content %}
-<h1>Welcome to the Movie Recommender System</h1>
+<h1 class="text-center">Welcome to the Movie Recommender System</h1>
+
+{% if error %}
+<div class="alert alert-danger">{{ error }}</div>
+{% endif %}
+
 <form method="get" action="{% url 'results' %}">
-    <!-- Existing movie title input -->
+    <!-- Movie Title Input -->
     <div class="form-group">
         <label for="movie_title">Enter a movie title:</label>
-        <input type="text" class="form-control" id="movie_title" name="movie_title" placeholder="e.g., Inception">
+        <input type="text" class="form-control" id="movie_title" name="movie_title" placeholder="e.g., Inception" required>
     </div>
-    <!-- New filter for genre -->
+    <!-- Number of Recommendations -->
     <div class="form-group">
-        <label for="genre">Filter by genre:</label>
-        <select class="form-control" id="genre" name="genre">
-            <option value="">All Genres</option>
-            <!-- Add more genres as needed -->
-            <option value="action">Action</option>
-            <option value="comedy">Comedy</option>
-            <option value="drama">Drama</option>
+        <label for="num_recommendations">Number of recommendations (default 5):</label>
+        <input type="number" class="form-control" id="num_recommendations" name="num_recommendations" min="1" max="20" value="5">
+    </div>
+    <!-- Genre Filter -->
+    <div class="form-group">
+        <label for="genres">Filter by genre:</label>
+        <select class="form-control" id="genres" name="genres" multiple="multiple">
+            {% for genre in genres %}
+            <option value="{{ genre }}">{{ genre }}</option>
+            {% endfor %}
         </select>
     </div>
-    <!-- Sorting options -->
+    <!-- Sorting Options -->
     <div class="form-group">
         <label for="sort_by">Sort by:</label>
         <select class="form-control" id="sort_by" name="sort_by">
             <option value="relevance">Relevance</option>
+            <option value="popularity">Popularity</option>
+            <option value="votes">Votes</option>
             <option value="title">Title</option>
         </select>
     </div>
     <button type="submit" class="btn btn-primary">Recommend</button>
 </form>
 {% endblock content %}
+
+{% block scripts %}
+<script>
+    $(document).ready(function() {
+        $('#genres').select2({
+            placeholder: "Select genres",
+            allowClear: true
+        });
+    });
+</script>
+{% endblock scripts %}

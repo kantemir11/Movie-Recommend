@@ -6,13 +6,13 @@ import nltk
 import re
 import warnings
 import ssl
-
+from sklearn.preprocessing import MinMaxScaler
+from scipy import sparse
+import ast
 from nltk.corpus import stopwords
 from nltk.stem import WordNetLemmatizer
-
-from sklearn.feature_extraction.text import CountVectorizer
+from sklearn.feature_extraction.text import TfidfVectorizer
 from sklearn.metrics.pairwise import cosine_similarity
-
 from rapidfuzz import process, fuzz
 
 class MovieRecommender:
@@ -34,57 +34,98 @@ class MovieRecommender:
         self.df = pd.read_csv('recommender/utils/movie_dataset.csv')  # Ensure this file is in your working directory
 
         # Select features to use
-        self.features = ['keywords', 'cast', 'genres', 'director']
+        self.text_features = [
+            'keywords', 'cast', 'genres', 'director', 'crew',
+            'production_companies', 'production_countries'
+        ]
+        self.numeric_features = ['vote_count', 'vote_average', 'popularity']
 
         # Handle missing values
         # Remove rows with missing values in selected features
-        self.df = self.df.dropna(subset=self.features)
+        self.df = self.df.dropna(subset=self.text_features + self.numeric_features)
 
-        # Apply text cleaning to each feature
-        for feature in self.features:
+        # Apply text cleaning to each text feature
+        for feature in self.text_features:
             self.df[feature] = self.df[feature].apply(self.clean_text)
+
+        # List of available genres (lowercase for matching)
+        self.available_genres = [
+            'action', 'adventure', 'animation', 'comedy', 'crime', 'documentary',
+            'drama', 'family', 'fantasy', 'history', 'horror', 'music',
+            'mystery', 'romance', 'science fiction', 'tv movie', 'thriller',
+            'war', 'western'
+        ]
 
         # Standardize genres
         self.df['genres'] = self.df['genres'].apply(self.standardize_genres)
 
-        # Combine features into a single string
-        self.df['combined_features'] = self.df.apply(self.combine_features, axis=1)
+        # Combine text features into a single string
+        self.df['combined_text'] = self.df.apply(self.combine_text_features, axis=1)
 
-        # Create CountVectorizer and compute count matrix
-        self.cv = CountVectorizer()
-        self.count_matrix = self.cv.fit_transform(self.df['combined_features'])
+        # Create TF-IDF vectorizer for text features
+        self.tfidf_vectorizer = TfidfVectorizer()
+        self.tfidf_matrix = self.tfidf_vectorizer.fit_transform(self.df['combined_text'])
+
+        # Normalize and scale numeric features
+        self.df[self.numeric_features] = self.df[self.numeric_features].astype(float)
+        scaler = MinMaxScaler()
+        self.df[self.numeric_features] = scaler.fit_transform(self.df[self.numeric_features])
+
+        # Create a sparse matrix for numeric features
+        self.numeric_matrix = sparse.csr_matrix(self.df[self.numeric_features].values)
+
+        # Combine text and numeric feature matrices
+        self.feature_matrix = sparse.hstack([self.tfidf_matrix, self.numeric_matrix])
 
         # Compute cosine similarity matrix
-        self.cosine_sim = cosine_similarity(self.count_matrix)
+        self.cosine_sim = cosine_similarity(self.feature_matrix)
 
         # Normalize movie titles by removing articles and lowercasing
         self.df['normalized_title'] = self.df['title'].apply(self.normalize_title)
 
     # Function to clean text data
     def clean_text(self, text):
-        # Convert text to lowercase
-        text = text.lower()
-        # Remove non-alphabetic characters
-        text = re.sub(r'[^a-zA-Z\s]', '', text)
-        # Tokenize text
-        words = text.split()
-        # Remove stopwords and perform lemmatization
-        stop_words = set(stopwords.words('english'))
-        lemmatizer = WordNetLemmatizer()
-        words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
-        # Join the words back into one string
-        return ' '.join(words)
+        if isinstance(text, str):
+            # Convert text to lowercase
+            text = text.lower()
+            # Remove non-alphabetic characters
+            text = re.sub(r'[^a-zA-Z\s]', '', text)
+            # Tokenize text
+            words = text.split()
+            # Remove stopwords and perform lemmatization
+            stop_words = set(stopwords.words('english'))
+            lemmatizer = WordNetLemmatizer()
+            words = [lemmatizer.lemmatize(word) for word in words if word not in stop_words]
+            # Join the words back into one string
+            return ' '.join(words)
+        else:
+            return ''
 
     # Standardize genres
     def standardize_genres(self, text):
-        # Replace 'sci fi' with 'science fiction'
-        text = text.replace('sci fi', 'science fiction')
-        # Add other replacements as needed
-        return text
+        if isinstance(text, str):
+            text = text.lower()
+            words = text.split()
+            genres_found = set()
 
-    # Combine features into a single string
-    def combine_features(self, row):
-        return ' '.join([row['keywords'], row['cast'], row['genres'], row['director']])
+            # Maximum number of words in a genre (e.g., "science fiction" has 2 words)
+            max_genre_length = max(len(genre.split()) for genre in self.available_genres)
+
+            # Use a sliding window to find matching genres
+            for window_size in range(1, max_genre_length + 1):
+                for i in range(len(words) - window_size + 1):
+                    phrase = ' '.join(words[i:i + window_size])
+                    if phrase in self.available_genres:
+                        genres_found.add(phrase.title())
+
+            # Return the genres found as a comma-separated string
+            return ','.join(genres_found)
+        else:
+            return ''
+
+    # Combine text features into a single string
+    def combine_text_features(self, row):
+        return ' '.join([row[feature] for feature in self.text_features])
 
     # Normalize movie titles by removing articles and lowercasing
     def normalize_title(self, title):
@@ -117,21 +158,41 @@ class MovieRecommender:
             # Movie not found
             return None, None
 
-    # Recommendation method
-    def recommend(self, movie_user_likes, num_recommendations=5):
+    # Recommendation method with optional filters and sorting
+    # recommender/utils/recommendation_engine.py
+
+    def recommend(self, movie_user_likes, num_recommendations=5, genres=None, sort_by='relevance'):
         movie_index, matched_title = self.get_index_from_title(movie_user_likes)
 
         if movie_index is not None:
             similar_movies = list(enumerate(self.cosine_sim[movie_index]))  # Access the row corresponding to the movie
 
-            # Sort movies based on similarity scores
-            sorted_similar_movies = sorted(similar_movies, key=lambda x: x[1], reverse=True)[1:]
+            # Exclude the input movie itself
+            similar_movies = similar_movies[1:]
 
+            # Apply filters
+            filtered_movies = self.apply_filters(similar_movies, genres)
+
+            # Apply sorting
+            sorted_movies = self.sort_movies(filtered_movies, sort_by)
+
+            # Get top N recommendations
             recommendations = []
             i = 0
-            for element in sorted_similar_movies:
-                recommended_title = self.get_title_from_index(element[0])
-                recommendations.append(recommended_title)
+            for element in sorted_movies:
+                recommended_movie = self.df.iloc[element[0]]
+                recommended_title = recommended_movie['title']
+                homepage = recommended_movie['homepage']
+                movie_genres = recommended_movie['genres']
+                release_date = recommended_movie['release_date']
+                overview = recommended_movie['overview']
+                recommendations.append({
+                    'title': recommended_title,
+                    'homepage': homepage,
+                    'genres': movie_genres,
+                    'release_date': release_date,
+                    'overview': overview,
+                })
                 i += 1
                 if i >= num_recommendations:
                     break
@@ -139,6 +200,34 @@ class MovieRecommender:
         else:
             # Movie not found
             return [], None
+
+    # Method to apply filters
+    def apply_filters(self, movies, genres):
+        filtered_movies = []
+        for idx, sim_score in movies:
+            movie = self.df.iloc[idx]
+            # Filter by genres
+            if genres:
+                # Get the movie genres as a set
+                movie_genres = set([genre.strip().title() for genre in movie['genres'].split(',')])
+                selected_genres = set([genre.title() for genre in genres])
+                if not movie_genres.intersection(selected_genres):
+                    continue
+            filtered_movies.append((idx, sim_score))
+        return filtered_movies
+
+    # Method to sort movies
+    def sort_movies(self, movies, sort_by):
+        if sort_by == 'relevance':
+            # Movies are already sorted by relevance (similarity score)
+            return movies
+        elif sort_by == 'popularity':
+            movies = sorted(movies, key=lambda x: self.df.iloc[x[0]]['popularity'], reverse=True)
+        elif sort_by == 'votes':
+            movies = sorted(movies, key=lambda x: self.df.iloc[x[0]]['vote_count'], reverse=True)
+        elif sort_by == 'title':
+            movies = sorted(movies, key=lambda x: self.df.iloc[x[0]]['title'])
+        return movies
 
     # Optional method to get genres of a movie
     def get_movie_genres(self, movie_title):

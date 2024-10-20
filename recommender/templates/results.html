@@ -1,37 +1,34 @@
+<!-- recommender/templates/results.html -->
 {% extends 'base.html' %}
 
 {% block content %}
-<h2>Top 5 movies similar to '{{ matched_title }}'</h2>
-<ul>
+<h2 class="text-center">Top {{ recommendations|length }} movies similar to '{{ matched_title }}'</h2>
+
+{% if error %}
+<div class="alert alert-warning">{{ error }}</div>
+{% else %}
+<ul class="list-group">
     {% for movie in recommendations %}
-    <li>{{ movie }}</li>
+    <li class="list-group-item">
+        <h4>{{ movie.title }}</h4>
+        {% if movie.genres %}
+        <p><strong>Genres:</strong> {{ movie.genres }}</p>
+        {% endif %}
+        {% if movie.release_date %}
+        <p><strong>Release Date:</strong> {{ movie.release_date }}</p>
+        {% endif %}
+        {% if movie.overview %}
+        <p><strong>Overview:</strong> {{ movie.overview }}</p>
+        {% endif %}
+        {% if movie.homepage %}
+        <a href="{{ movie.homepage }}" target="_blank">Visit Homepage</a>
+        {% endif %}
+    </li>
     {% endfor %}
 </ul>
+{% endif %}
 
-<!-- Chart.js -->
-<script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
-
-<canvas id="similarityChart" width="400" height="200"></canvas>
-
-<script>
-    var ctx = document.getElementById('similarityChart').getContext('2d');
-    var chart = new Chart(ctx, {
-        type: 'bar',
-        data: {
-            labels: {{ movie_titles|safe }},
-            datasets: [{
-                label: 'Similarity Score',
-                data: {{ similarity_scores|safe }},
-                backgroundColor: 'rgba(54, 162, 235, 0.6)',
-            }]
-        },
-        options: {
-            scales: {
-                yAxes: [{ ticks: { beginAtZero: true } }]
-            }
-        }
-    });
-</script>
-
-<a href="{% url 'index' %}">Search again</a>
+<div class="text-center mt-4">
+    <a href="{% url 'index' %}" class="btn btn-secondary">Search again</a>
+</div>
 {% endblock content %}
