@@ -141,28 +141,32 @@ class MovieRecommender:
         return self.df.iloc[index]['title']
 
     # Helper function to get index from movie title
-    def get_index_from_title(self, user_input_title):
+    def get_index_from_title(self, user_input_title, threshold=70):
         # Normalize user input
         normalized_input = self.normalize_title(user_input_title)
         # Get the list of normalized titles
         titles = self.df['normalized_title'].tolist()
-        # Use RapidFuzz to find the best match
-        matches = process.extractOne(normalized_input, titles, scorer=fuzz.token_set_ratio)
-        if matches:
-            best_match_title = matches[0]
-            # Get the index of the best match
-            index = self.df[self.df['normalized_title'] == best_match_title].index[0]
-            original_title = self.df.loc[index, 'title']
-            return index, original_title  # Return index and the original title
+        # Use RapidFuzz to find the best match along with the similarity score
+        match = process.extractOne(normalized_input, titles, scorer=fuzz.token_set_ratio)
+        if match:
+            best_match_title = match[0]
+            similarity_score = match[1]
+            if similarity_score >= threshold:
+                # Get the index of the best match
+                index = self.df[self.df['normalized_title'] == best_match_title].index[0]
+                original_title = self.df.loc[index, 'title']
+                return index, original_title  # Return index and the original title
+            else:
+                # Similarity score is below the threshold; consider the movie not found
+                return None, None
         else:
-            # Movie not found
+            # No matches found
             return None, None
-
     # Recommendation method with optional filters and sorting
     # recommender/utils/recommendation_engine.py
 
-    def recommend(self, movie_user_likes, num_recommendations=5, genres=None, sort_by='relevance'):
-        movie_index, matched_title = self.get_index_from_title(movie_user_likes)
+    def recommend(self, movie_user_likes, num_recommendations=5, genres=None, sort_by='relevance', threshold=70):
+        movie_index, matched_title = self.get_index_from_title(movie_user_likes, threshold=threshold)
 
         if movie_index is not None:
             similar_movies = list(enumerate(self.cosine_sim[movie_index]))  # Access the row corresponding to the movie
