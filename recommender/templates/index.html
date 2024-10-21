@@ -1,14 +1,21 @@
 <!-- recommender/templates/index.html -->
 {% extends 'base.html' %}
+{% load custom_filters %}
 
 {% block content %}
-<h1 class="text-center">Welcome to the Movie Recommender System</h1>
+<div class="jumbotron text-center">
+    <h1 class="display-4">Welcome to Movie Recommender</h1>
+    <p class="lead">Discover movies tailored to your taste.</p>
+    {% if not user.is_authenticated %}
+    <p><a class="btn btn-primary btn-lg" href="{% url 'signup' %}" role="button">Sign Up Now</a></p>
+    {% endif %}
+</div>
 
 {% if error %}
 <div class="alert alert-danger">{{ error }}</div>
 {% endif %}
 
-<form method="get" action="{% url 'results' %}">
+<form method="get" action="{% url 'results' %}" class="mb-5">
     <!-- Movie Title Input -->
     <div class="form-group">
         <label for="movie_title">Enter a movie title:</label>
@@ -34,20 +41,126 @@
         <select class="form-control" id="sort_by" name="sort_by">
             <option value="relevance">Relevance</option>
             <option value="popularity">Popularity</option>
-            <option value="votes">Votes</option>
+            <option value="rating">Rating</option>
+            <option value="release_date_newest">Release Date (Newest First)</option>
+            <option value="release_date_oldest">Release Date (Oldest First)</option>
             <option value="title">Title</option>
         </select>
     </div>
-    <button type="submit" class="btn btn-primary">Recommend</button>
+    <button type="submit" class="btn btn-success btn-block">Get Recommendations</button>
 </form>
+
+{% if user.is_authenticated %}
+    {% if liked_movies %}
+    <h2 class="mt-5">Your Liked Movies:</h2>
+    <ul class="list-group">
+        {% for movie in liked_movies %}
+        <li class="list-group-item">
+            <div class="d-flex justify-content-between align-items-center">
+                <div>
+                    <h4>{{ movie.title }}</h4>
+                    {% if movie.genres %}
+                    <p><strong>Genres:</strong> {{ movie.genres }}</p>
+                    {% endif %}
+                    {% if movie.release_date %}
+                    <p><strong>Release Date:</strong> {{ movie.release_date|date:"F j, Y" }}</p>
+                    {% endif %}
+                    {% if movie.rating %}
+                    <p><strong>Rating:</strong> {{ movie.rating|multiply:10|floatformat:0 }}%</p>
+                    {% endif %}
+                    {% if movie.popularity %}
+                    <p><strong>Popularity:</strong> {{ movie.popularity|floatformat:1 }}</p>
+                    {% endif %}
+                    {% if movie.overview %}
+                    <p><strong>Overview:</strong> {{ movie.overview }}</p>
+                    {% endif %}
+                    {% if movie.homepage %}
+                    <a href="{{ movie.homepage }}" target="_blank" class="btn btn-info btn-sm">Visit Homepage</a>
+                    {% endif %}
+                </div>
+                <button
+                    class="btn like-button btn-liked btn-sm"
+                    data-movie-id="{{ movie.movie_id }}"
+                    data-movie-title="{{ movie.title }}"
+                    aria-pressed="true"
+                    aria-label="Unlike"
+                >
+                    <i class="fa fa-heart"></i>
+                    <span>Liked</span>
+                </button>
+            </div>
+        </li>
+        {% endfor %}
+    </ul>
+    {% else %}
+    <p>You have not liked any movies yet. Start exploring and like your favorite movies!</p>
+    {% endif %}
+{% endif %}
+
 {% endblock content %}
 
 {% block scripts %}
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css">
+
+<!-- Include canvas-confetti library -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
 <script>
     $(document).ready(function() {
         $('#genres').select2({
             placeholder: "Select genres",
             allowClear: true
+        });
+
+        $('.like-button').click(function() {
+            var button = $(this);
+            var movieId = button.data('movie-id');
+            var movieTitle = button.data('movie-title');
+            var csrfToken = '{{ csrf_token }}';
+
+            $.ajax({
+                url: '{% url "like_movie" %}',
+                type: 'POST',
+                data: {
+                    'movie_id': movieId,
+                    'title': movieTitle,
+                    'csrfmiddlewaretoken': csrfToken
+                },
+                success: function(response) {
+                    if (response.status === 'liked') {
+                        button.removeClass('btn-not-liked').addClass('btn-liked');
+                        button.find('.fa').removeClass('fa-heart-o').addClass('fa-heart');
+                        button.find('span').text('Liked');
+
+                        // Trigger confetti animation
+                        confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 },
+                        });
+                    } else if (response.status === 'unliked') {
+                        button.removeClass('btn-liked').addClass('btn-not-liked');
+                        button.find('.fa').removeClass('fa-heart').addClass('fa-heart-o');
+                        button.find('span').text('Like');
+
+                        // Remove the movie from the liked movies list
+                        button.closest('li').remove();
+                    }
+
+                    // Add animation class
+                    button.addClass('animate-like');
+
+                    // Remove animation class after animation completes
+                    setTimeout(function() {
+                        button.removeClass('animate-like');
+                    }, 300);
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', error);
+                    alert('An error occurred while processing your request.');
+                }
+            });
         });
     });
 </script>

@@ -1,5 +1,6 @@
 <!-- recommender/templates/results.html -->
 {% extends 'base.html' %}
+{% load custom_filters %}
 
 {% block content %}
 <h2 class="text-center">Top {{ recommendations|length }} movies similar to '{{ matched_title }}'</h2>
@@ -10,19 +11,40 @@
 <ul class="list-group">
     {% for movie in recommendations %}
     <li class="list-group-item">
-        <h4>{{ movie.title }}</h4>
-        {% if movie.genres %}
-        <p><strong>Genres:</strong> {{ movie.genres }}</p>
-        {% endif %}
-        {% if movie.release_date %}
-        <p><strong>Release Date:</strong> {{ movie.release_date }}</p>
-        {% endif %}
-        {% if movie.overview %}
-        <p><strong>Overview:</strong> {{ movie.overview }}</p>
-        {% endif %}
-        {% if movie.homepage %}
-        <a href="{{ movie.homepage }}" target="_blank">Visit Homepage</a>
-        {% endif %}
+        <div class="d-flex justify-content-between align-items-center">
+            <div>
+                <h4>{{ movie.title }}</h4>
+                {% if movie.genres %}
+                <p><strong>Genres:</strong> {{ movie.genres }}</p>
+                {% endif %}
+                {% if movie.release_date %}
+                <p><strong>Release Date:</strong> {{ movie.release_date|date:"F j, Y" }}</p>
+                {% endif %}
+                {% if movie.rating %}
+                <p><strong>Rating:</strong> {{ movie.rating|multiply:10|floatformat:1 }}</p>
+                {% endif %}
+                {% if movie.overview %}
+                <p><strong>Overview:</strong> {{ movie.overview }}</p>
+                {% endif %}
+                {% if movie.homepage %}
+                <a href="{{ movie.homepage }}" target="_blank" class="btn btn-info btn-sm">Visit Homepage</a>
+                {% endif %}
+            </div>
+            {% if user.is_authenticated %}
+            <button
+                class="btn like-button {% if movie.movie_id in user_liked_movie_ids %}btn-liked{% else %}btn-not-liked{% endif %} btn-sm"
+                data-movie-id="{{ movie.movie_id }}"
+                data-movie-title="{{ movie.title }}"
+                aria-pressed="{% if movie.movie_id in user_liked_movie_ids %}true{% else %}false{% endif %}"
+                aria-label="{% if movie.movie_id in user_liked_movie_ids %}Unlike{% else %}Like{% endif %}"
+            >
+                <i class="fa {% if movie.movie_id in user_liked_movie_ids %}fa-heart{% else %}fa-heart-o{% endif %}"></i>
+                <span>{% if movie.movie_id in user_liked_movie_ids %}Liked{% else %}Like{% endif %}</span>
+            </button>
+            {% else %}
+            <p><a href="{% url 'login' %}?next={{ request.path }}">Login</a> to like this movie.</p>
+            {% endif %}
+        </div>
     </li>
     {% endfor %}
 </ul>
@@ -32,3 +54,62 @@
     <a href="{% url 'index' %}" class="btn btn-secondary">Search again</a>
 </div>
 {% endblock content %}
+
+{% block scripts %}
+<!-- Include Font Awesome for icons -->
+<link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/4.7.0/css/font-awesome.css">
+
+<!-- Include canvas-confetti library -->
+<script src="https://cdn.jsdelivr.net/npm/canvas-confetti@1.5.1/dist/confetti.browser.min.js"></script>
+
+<script>
+    $(document).ready(function() {
+        $('.like-button').click(function() {
+            var button = $(this);
+            var movieId = button.data('movie-id');
+            var movieTitle = button.data('movie-title');
+            var csrfToken = '{{ csrf_token }}';
+
+            $.ajax({
+                url: '{% url "like_movie" %}',
+                type: 'POST',
+                data: {
+                    'movie_id': movieId,
+                    'title': movieTitle,
+                    'csrfmiddlewaretoken': csrfToken
+                },
+                success: function(response) {
+                    if (response.status === 'liked') {
+                        button.removeClass('btn-not-liked').addClass('btn-liked');
+                        button.find('.fa').removeClass('fa-heart-o').addClass('fa-heart');
+                        button.find('span').text('Liked');
+
+                        // Trigger confetti animation
+                        confetti({
+                            particleCount: 100,
+                            spread: 70,
+                            origin: { y: 0.6 },
+                        });
+                    } else if (response.status === 'unliked') {
+                        button.removeClass('btn-liked').addClass('btn-not-liked');
+                        button.find('.fa').removeClass('fa-heart').addClass('fa-heart-o');
+                        button.find('span').text('Like');
+                    }
+
+                    // Add animation class
+                    button.addClass('animate-like');
+
+                    // Remove animation class after animation completes
+                    setTimeout(function() {
+                        button.removeClass('animate-like');
+                    }, 300);
+                },
+                error: function(xhr, status, error) {
+                    console.error('AJAX Error:', error);
+                    alert('An error occurred while processing your request.');
+                }
+            });
+        });
+    });
+</script>
+{% endblock scripts %}

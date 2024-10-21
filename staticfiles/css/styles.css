@@ -1,5 +1,6 @@
 /* recommender/static/css/styles.css */
 
+/* Body Styling */
 body {
     background-color: #f8f9fa;
 }
@@ -26,4 +27,45 @@ ul.list-group li p {
 
 .btn {
     margin-top: 10px;
+}
+
+/* Like Button Styles */
+.btn-liked {
+    background-color: #e74c3c;
+    color: #fff;
+    border: none;
+}
+
+.btn-not-liked {
+    background-color: #fff;
+    color: #e74c3c;
+    border: 1px solid #e74c3c;
+}
+
+.btn-liked:hover,
+.btn-not-liked:hover {
+    background-color: #c0392b;
+    color: #fff;
+}
+
+.btn-liked .fa,
+.btn-not-liked .fa {
+    margin-right: 5px;
+}
+
+/* Animation for the Like Button */
+@keyframes like-pulse {
+    0% {
+        transform: scale(1);
+    }
+    50% {
+        transform: scale(1.2);
+    }
+    100% {
+        transform: scale(1);
+    }
+}
+
+.animate-like {
+    animation: like-pulse 0.3s ease-in-out;
 }
