@@ -2,6 +2,8 @@ Personalized Movie Recommendation System
 
 A web-based application that provides personalized movie recommendations to users based on their liked movies. Built with Python and Django, the system allows users to search for movies, like them, and receive tailored recommendations. The application features user authentication, interactive UI elements, and advanced sorting options to enhance user engagement.
 
+DEMO: https://drive.google.com/file/d/1PUsxjBjvJXy0LRmfCyLm2XvmW2wqAo5-/view?usp=sharing
+
 Table of Contents
 
 	•	Features
