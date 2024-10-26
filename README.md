@@ -29,7 +29,7 @@ Features
 
 Technologies Used
 
-	•	Python
+	•	Python 
 	•	Django 
 	•	Pandas
 	•	NumPy
@@ -38,6 +38,7 @@ Technologies Used
 	•	jQuery
 	•	Font Awesome
 	•	Select2
+	•	canvas-confetti
 
 Installation
 
@@ -45,35 +46,66 @@ Prerequisites
 
 	•	Python3 installed on your system.
 	•	pip package installer.
-	•	Git
+	•	Git (optional, for cloning the repository).
 
 Setup Instructions
+
 	1.	Clone the Repository
+
 git clone https://github.com/yourusername/movie-recommendation-system.git
 cd movie-recommendation-system
+
+
 	2.	Create a Virtual Environment
 It’s recommended to use a virtual environment to manage dependencies.
+
 python -m venv venv
+
+
 	3.	Activate the Virtual Environment
 	•	On Windows:
+
 venv\Scripts\activate
+
+
 	•	On macOS and Linux:
+
 source venv/bin/activate
+
+
 	4.	Install Required Packages
+
 pip install -r requirements.txt
+
+
 	5.	Set Up the Database
 Apply migrations to set up the SQLite database.
+
 python manage.py migrate
+
+
 	6.	Load Movie Data
 Ensure you have a CSV file containing movie data. Place it in the appropriate directory and update the path in recommendation_engine.py.
+
 # In recommender/utils/recommendation_engine.py
 self.df = pd.read_csv('path_to_your_movies.csv')
+
+
 	7.	Collect Static Files
+
 python manage.py collectstatic
+
+
 	8.	Create a Superuser (Optional)
+
 python manage.py createsuperuser
+
+
 	9.	Run the Development Server
+
 python manage.py runserver
+
+
 
 Usage
 
@@ -134,3 +166,5 @@ Additional Notes
 	•	Data Source: Ensure you have the appropriate rights to use the movie data in your CSV file.
 	•	Security: Do not expose your secret keys or sensitive information in a public repository.
 	•	Deployment: For production deployment, consider using a robust database like PostgreSQL and configure appropriate security measures.
+
+Feel free to customize this README file further to suit your project’s specifics. Include any additional information that might be helpful for users or contributors.
